@@ -6,9 +6,13 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "build": "cd frontend && npm run build",
+<<<<<<< HEAD
     "start": "cd backend && npm run start",
     "build:zeabur": "npm install && cd backend && npm install --omit=dev && cd ../frontend && npm install && npm run build",
     "start:zeabur": "NODE_ENV=production node backend/index.js"
+=======
+    "start": "cd backend && npm run start"
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

@@ -1,11 +1,17 @@
 import 'dotenv/config'
+<<<<<<< HEAD
 import path from 'path'
 import { fileURLToPath } from 'url'
+=======
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
 import express from 'express'
 import cors from 'cors'
 import OpenAI from 'openai'
 
+<<<<<<< HEAD
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+=======
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
 const app = express()
 app.use(cors())
 app.use(express.json({ limit: '1mb' }))
@@ -330,6 +336,7 @@ app.get('/api/check-connection', async (req, res) => {
   }
 })
 
+<<<<<<< HEAD
 // 生产环境：托管前端构建产物（Zeabur 等单服务部署时前端请求走同源）
 const serveStatic = process.env.NODE_ENV === 'production' || process.env.SERVE_STATIC === '1'
 const staticDirs = [
@@ -345,5 +352,7 @@ if (serveStatic) {
   }
 }
 
+=======
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => console.log(`Backend http://localhost:${PORT}`))

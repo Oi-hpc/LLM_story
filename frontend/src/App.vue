@@ -30,7 +30,11 @@ const error = ref('')
 const customInput = ref('')
 const currentBgm = ref(null)
 
+<<<<<<< HEAD
 const canRollback = computed(() => rollbackSnapshots.value.length >= 1)
+=======
+const canRollback = computed(() => rollbackSnapshots.value.length > 1)
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
 const canSave = computed(() => messages.value.length > 0)
 
 function mergeState(update) {
@@ -44,7 +48,10 @@ function mergeState(update) {
 }
 
 function pushTurnSnapshot() {
+<<<<<<< HEAD
   const lastUser = messages.value.filter((m) => m.role === 'user').pop()
+=======
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
   rollbackSnapshots.value.push({
     chapterIndex: chapterIndex.value,
     chapterSummary: chapterSummary.value,
@@ -57,7 +64,10 @@ function pushTurnSnapshot() {
     areaId: areaId.value,
     visibleAreas: [...(visibleAreas.value || [])],
     bgmTag: bgmTag.value,
+<<<<<<< HEAD
     lastUserChoice: lastUser ? lastUser.content : '（开场）',
+=======
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
   })
 }
 
@@ -97,6 +107,10 @@ function sendChoice(choice) {
         chapterSummary.value = data.chapter_summary
         chapterIndex.value += 1
         turnIndex.value = 0
+<<<<<<< HEAD
+=======
+        rollbackSnapshots.value = []
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
         pushTurnSnapshot()
       }
     })
@@ -108,10 +122,17 @@ function sendChoice(choice) {
     })
 }
 
+<<<<<<< HEAD
 function rollbackTo(snapshotIndex) {
   const snap = rollbackSnapshots.value
   if (snapshotIndex < 0 || snapshotIndex >= snap.length) return
   const prev = snap[snapshotIndex]
+=======
+function rollback() {
+  if (!canRollback.value || rollbackSnapshots.value.length < 2) return
+  rollbackSnapshots.value.pop()
+  const prev = rollbackSnapshots.value[rollbackSnapshots.value.length - 1]
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
   chapterIndex.value = prev.chapterIndex
   chapterSummary.value = prev.chapterSummary
   turnIndex.value = prev.turnIndex
@@ -123,6 +144,7 @@ function rollbackTo(snapshotIndex) {
   areaId.value = prev.areaId
   visibleAreas.value = [...(prev.visibleAreas || [])]
   bgmTag.value = prev.bgmTag
+<<<<<<< HEAD
   rollbackSnapshots.value = snap.slice(0, snapshotIndex + 1)
   showRollbackPanel.value = false
 }
@@ -130,6 +152,11 @@ function rollbackTo(snapshotIndex) {
 const showRollbackPanel = ref(false)
 const showMenu = ref(true)
 
+=======
+  rollbackSnapshots.value.pop()
+}
+
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
 function saveGame() {
   const payload = {
     chapterIndex: chapterIndex.value,
@@ -175,14 +202,22 @@ function loadGame() {
     visibleAreas.value = payload.visibleAreas ?? ['crash_site']
     bgmTag.value = payload.bgmTag ?? 'tense'
     error.value = ''
+<<<<<<< HEAD
     showMenu.value = false
+=======
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
   } catch (e) {
     error.value = '读档失败'
   }
 }
 
+<<<<<<< HEAD
 function startFromMenu() {
   showMenu.value = false
+=======
+function startNew() {
+  if (!confirm('将清除当前进度并重新开始，是否继续？')) return
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
   chapterIndex.value = 0
   chapterSummary.value = ''
   turnIndex.value = 0
@@ -199,17 +234,24 @@ function startFromMenu() {
   sendChoice('开始游戏。我扮演伊森·温特斯，请从押送车侧翻后我在雪林残骸中醒来的情境开始叙述，并给出 [A][B][C] 三个行动选项。')
 }
 
+<<<<<<< HEAD
 function startNew() {
   if (!confirm('将清除当前进度并重新开始，是否继续？')) return
   startFromMenu()
 }
 
+=======
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
 watch(bgmTag, (tag) => {
   currentBgm.value = tag
 })
 
 onMounted(() => {
+<<<<<<< HEAD
   if (!showMenu.value && messages.value.length === 0) {
+=======
+  if (messages.value.length === 0) {
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
     narrative.value = '加载中… 请点击「新游戏」开始，或「读档」继续上次进度。'
   }
 })
@@ -217,6 +259,7 @@ onMounted(() => {
 
 <template>
   <div class="app">
+<<<<<<< HEAD
     <div v-if="showMenu" class="menu-screen">
       <div class="menu-content">
         <h1 class="menu-title">雾中村庄</h1>
@@ -239,6 +282,14 @@ onMounted(() => {
         <button class="btn btn-secondary" @click="loadGame">读档</button>
         <button class="btn btn-secondary" :disabled="!canSave" @click="saveGame">存档</button>
         <button class="btn btn-secondary" :disabled="!canRollback" @click="showRollbackPanel = true">回溯</button>
+=======
+    <header class="header">
+      <h1 class="title">生化危机 · 交互叙事</h1>
+      <div class="actions">
+        <button class="btn btn-secondary" @click="loadGame">读档</button>
+        <button class="btn btn-secondary" :disabled="!canSave" @click="saveGame">存档</button>
+        <button class="btn btn-secondary" :disabled="!canRollback" @click="rollback">回溯</button>
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
         <button class="btn btn-primary" @click="startNew">新游戏</button>
       </div>
     </header>
@@ -249,6 +300,7 @@ onMounted(() => {
       </aside>
       <section class="content">
         <GameBgm :tag="currentBgm" />
+<<<<<<< HEAD
         <Teleport to="body">
           <div v-if="showRollbackPanel" class="rollback-overlay" @click.self="showRollbackPanel = false">
             <div class="rollback-panel">
@@ -270,6 +322,8 @@ onMounted(() => {
             </div>
           </div>
         </Teleport>
+=======
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
         <GameNarrative
           :narrative="narrative"
           :options="options"
@@ -281,7 +335,10 @@ onMounted(() => {
         />
       </section>
     </main>
+<<<<<<< HEAD
     </template>
+=======
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
   </div>
 </template>
 
@@ -292,6 +349,7 @@ onMounted(() => {
   flex-direction: column;
   background: var(--bg-dark);
 }
+<<<<<<< HEAD
 
 .menu-screen {
   min-height: 100vh;
@@ -366,6 +424,8 @@ onMounted(() => {
   color: var(--red);
 }
 
+=======
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
 .header {
   display: flex;
   align-items: center;
@@ -440,6 +500,7 @@ onMounted(() => {
     flex-wrap: wrap;
   }
 }
+<<<<<<< HEAD
 
 .rollback-overlay {
   position: fixed;
@@ -514,4 +575,6 @@ onMounted(() => {
 .rollback-cancel {
   margin: 0 1rem 1rem;
 }
+=======
+>>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
 </style>
