@@ -87,7 +87,6 @@ cd backend && npm run start
 
 前端需能访问到后端的 `/api/chat`。若前后端同域，无需改代码；若跨域，需在后端配置 CORS 允许前端域名。
 
-<<<<<<< HEAD
 ### 5. 部署到 Zeabur
 
 本项目可按**单服务**部署到 [Zeabur](https://zeabur.com)：构建前端后由后端托管静态资源，API 与页面同域。
@@ -103,8 +102,6 @@ cd backend && npm run start
 
 注意：Zeabur 上不要提交 `backend/.env`，敏感信息一律用 Zeabur 控制台的环境变量配置。
 
-=======
->>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
 ## 项目结构
 
 ```

@@ -1,16 +1,11 @@
 <script setup>
-<<<<<<< HEAD
 import { computed } from 'vue'
 const props = defineProps({
-=======
-defineProps({
->>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
   state: {
     type: Object,
     default: () => ({ health: 100, ammo: 30, items: [], relation_npc: {} }),
   },
 })
-<<<<<<< HEAD
 // 状态栏已单独显示弹药，物品栏中不再重复显示弹药类条目
 const displayItems = computed(() => {
   const items = props.state?.items || []
@@ -19,8 +14,6 @@ const displayItems = computed(() => {
     return !/子弹|弹药/.test(s)
   })
 })
-=======
->>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
 </script>
 
 <template>
@@ -37,17 +30,10 @@ const displayItems = computed(() => {
       <span class="stat-label">弹药</span>
       <span class="stat-value">{{ state.ammo ?? 0 }}</span>
     </div>
-<<<<<<< HEAD
     <div v-if="displayItems.length" class="items-row">
       <span class="stat-label">物品</span>
       <ul class="items-list">
         <li v-for="(item, i) in displayItems" :key="i">{{ item }}</li>
-=======
-    <div v-if="state.items && state.items.length" class="items-row">
-      <span class="stat-label">物品</span>
-      <ul class="items-list">
-        <li v-for="(item, i) in state.items" :key="i">{{ item }}</li>
->>>>>>> 0554b5085f16d60c41bf854fd4c24b4503c9903a
       </ul>
     </div>
   </div>
