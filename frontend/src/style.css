@@ -1,0 +1,42 @@
+:root {
+  --bg-dark: #0a0c0e;
+  --bg-panel: #12161a;
+  --border: #2a3540;
+  --accent: #8b0000;
+  --accent-dim: #5c0000;
+  --text: #e0e4e8;
+  --text-dim: #88909a;
+  --green: #1a4d1a;
+  --red: #8b2020;
+  --font-display: 'Orbitron', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-dark);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, textarea {
+  font-family: inherit;
+}
