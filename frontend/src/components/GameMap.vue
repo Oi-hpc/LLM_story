@@ -1,10 +1,13 @@
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   areaId: { type: String, default: 'crash_site' },
   visibleAreas: { type: Array, default: () => ['crash_site'] },
   chapterIndex: { type: Number, default: 0 },
+  customMode: { type: Boolean, default: false },
 })
-const areas = [
+const defaultAreas = [
   { id: 'crash_site', label: '翻车点' },
   { id: 'forest_path', label: '林间小路' },
   { id: 'village_gate', label: '村口' },
@@ -14,6 +17,17 @@ const areas = [
   { id: 'dungeon', label: '地牢' },
   { id: 'factory_entrance', label: '工厂入口' },
 ]
+
+const areas = computed(() => {
+  if (!props.customMode) return defaultAreas
+  const ids = [...new Set([props.areaId, ...(props.visibleAreas || [])].filter(Boolean))]
+  return ids.map((id) => ({
+    id,
+    label: String(id)
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase()),
+  }))
+})
 </script>
 
 <template>

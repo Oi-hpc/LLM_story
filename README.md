@@ -4,8 +4,9 @@
 
 ## 功能概览
 
-- **玩法**：AI 叙述剧情并给出选项，可点击选项或输入自定义行动；章节模式（约 10 分钟/章），章节间通过摘要传递状态；单章内可回溯到任意回合；支持存档与读档（本地）。
+- **玩法**：支持经典生化危机模式，也支持输入任意世界背景后直接开局的自定义模式。AI 叙述剧情并给出选项，可点击选项或输入自定义行动；章节模式（约 10 分钟/章），章节间通过摘要传递状态；单章内可回溯到任意回合；支持存档与读档（本地）。
 - **体验**：生化危机风格界面、数值展示（生命/弹药/物品）、区域地图与当前/可见区域高亮、多风格 BGM 随剧情切换。
+- **场景生图**：玩家可按需让 AI 从当前叙事提炼英文生图 Prompt，并调用 xAI Grok Imagine 生成当前场景画面。
 
 ## 技术栈
 
@@ -47,6 +48,11 @@ cp .env.example .env
 OPENAI_API_KEY=你的DeepSeek_API_Key
 OPENAI_BASE_URL=https://api.deepseek.com/v1
 OPENAI_MODEL=deepseek-chat
+
+# 场景生图使用你的第三方 OpenAI 兼容 Grok 接口
+GROK_API_KEY=你的第三方_Grok_API_Key
+GROK_BASE_URL=https://你的第三方接口地址/v1
+GROK_IMAGE_MODEL=第三方提供的生图模型_ID
 ```
 
 （DeepSeek 兼容 OpenAI 接口，无需改代码；可选模型还有 `deepseek-reasoner`。本后端已启用 DeepSeek 的 **JSON Output**（`response_format: { type: 'json_object' }`），若使用其他厂商 API 且不支持该参数，需在代码中移除 `response_format`。）
@@ -73,7 +79,7 @@ cd backend && npm run dev
 cd frontend && npm run dev
 ```
 
-浏览器访问 **http://localhost:5173**，点击「新游戏」即可开始。首次会由 AI 给出开场叙述与选项。
+浏览器访问 **http://localhost:5173**。选择「经典模式」可进入原有故事；选择「自定义模式」，输入至少 20 个字的世界背景即可由 AI 创建开场。进入游戏后可点击「生成当前场景」调用 Grok 生图。
 
 ### 4. 生产构建与运行
 
@@ -85,7 +91,7 @@ npm run build
 cd backend && npm run start
 ```
 
-前端需能访问到后端的 `/api/chat`。若前后端同域，无需改代码；若跨域，需在后端配置 CORS 允许前端域名。
+前端需能访问到后端的 `/api/chat` 与 `/api/generate-scene-image`。若前后端同域，无需改代码；若跨域，需在后端配置 CORS 允许前端域名。
 
 ### 5. 部署到 Zeabur
 
@@ -97,6 +103,11 @@ cd backend && npm run start
    - `OPENAI_API_KEY`：你的 API Key（必填）
    - `OPENAI_BASE_URL`：如 DeepSeek 填 `https://api.deepseek.com/v1`
    - `OPENAI_MODEL`：如 `deepseek-chat`
+   - `GROK_API_KEY`：第三方 Grok 接口 Key；若与剧情接口共用 Key，也可省略并复用 `OPENAI_API_KEY`
+   - `GROK_BASE_URL`：第三方 OpenAI 兼容 base URL，通常以 `/v1` 结尾
+   - `GROK_IMAGE_MODEL`：第三方实际提供的生图模型 ID
+   - `GROK_IMAGE_RESPONSE_FORMAT`：默认 `url`；若网关只支持 Base64，可设为 `b64_json`
+   - `GROK_IMAGE_SIZE` / `GROK_IMAGE_ASPECT_RATIO`：仅在第三方文档明确支持时配置，默认不会发送
    - `NODE_ENV`：填 `production`（用于开启静态托管）
 4. **部署**：构建会执行 `npm run build:zeabur`（安装依赖并构建前端），启动为 `npm run start:zeabur`（运行后端并托管前端）。部署完成后用 Zeabur 提供的域名访问即可。
 

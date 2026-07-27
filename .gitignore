@@ -1,5 +1,6 @@
 # 依赖目录：用 package.json 在别处执行 npm install 即可恢复，不要提交
 node_modules/
+.npm-cache/
 
 # 后端环境变量（含 API Key，勿提交）
 backend/.env

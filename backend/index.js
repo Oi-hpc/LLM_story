@@ -15,6 +15,13 @@ const openai = new OpenAI({
   baseURL: process.env.OPENAI_BASE_URL || undefined,
 })
 
+const grok = new OpenAI({
+  apiKey: process.env.GROK_API_KEY || process.env.OPENAI_API_KEY || '',
+  baseURL: process.env.GROK_BASE_URL || 'https://api.x.ai/v1',
+})
+
+const DEFAULT_WORLD_BACKGROUND = `《生化危机8：村庄》的世界。玩家扮演伊森·温特斯，在诡异的东欧村庄中寻找并解救女儿萝丝。故事严格遵循村庄、四大贵族、霉菌、伊森的不死体质等设定。`
+
 const SYSTEM_PROMPT = `# 角色与任务
 你是《生化危机8：村庄》的生存恐怖游戏主持人（Game Master）。玩家扮演伊森·温特斯（Ethan Winters），目标是在诡异的东欧村庄中寻找并解救女儿萝丝。你根据玩家的选择推进剧情，并**始终只输出一个合法 JSON 对象**，不要输出任何 JSON 之外的文字。
 
@@ -67,6 +74,42 @@ const SYSTEM_PROMPT = `# 角色与任务
 
 **JSON 格式要求**：直接输出一个 JSON 对象，不要用 \`\`\`json 代码块包裹，不要输出任何前后说明文字。narrative 字段内如需换行请用 \\n 表示，勿使用未转义的真实换行；字符串内双引号请转义为 \\"。`
 
+const CUSTOM_SYSTEM_PROMPT = `# 角色与任务
+你是一名擅长即兴叙事的互动游戏主持人（Game Master）。玩家提供了一个自定义世界背景，你必须以该背景为最高世界观约束，建立人物、冲突与开场，并根据玩家选择持续推进剧情。始终只输出一个合法 JSON 对象，不要输出 JSON 之外的文字。
+
+## 叙事规则
+- 使用中文，以强烈的画面感和感官细节营造沉浸感；每轮 2–4 段，保持节奏与悬念。
+- 不要擅自替玩家完成重大决定。背景没有写明的细节可以合理补全，但不得篡改玩家明确给出的设定。
+- 第一轮应自然建立玩家身份、当前目标、迫在眉睫的冲突和三个真正不同的行动方向。
+- state_update 仅填写本轮有变化的项：health 为 0–100 整数，ammo 为可选的主要消耗资源数量，items 为字符串数组，relation_npc 为关键人物关系。
+- 每轮提供 [A]、[B]、[C] 三个简短行动建议，allowCustomInput 始终为 true。
+- area_id 使用简短稳定的 snake_case 区域 ID；visible_areas 列出当前可感知区域，并在后续保持前后一致。
+- bgm_tag 仅限 calm | tense | mystery | action | sad。
+- 一章结束或角色死亡时 chapter_end 为 true，chapter_summary 必须概括重要抉择、人物状态、关键物品和下一章入口或结局；否则为 null。
+
+## 必须输出的 JSON 结构
+{
+  "narrative": "本轮叙述正文",
+  "options": ["[A] 行动一", "[B] 行动二", "[C] 行动三"],
+  "allowCustomInput": true,
+  "state_update": { "health": 100, "ammo": 0, "items": [] },
+  "area_id": "starting_area",
+  "visible_areas": ["starting_area"],
+  "bgm_tag": "mystery",
+  "chapter_end": false,
+  "chapter_summary": null
+}
+
+JSON 格式要求：只输出一个 JSON 对象；不要使用 markdown 代码块；字符串中的换行和双引号必须正确转义；不要有尾逗号。`
+
+const IMAGE_PROMPT_SYSTEM = `你是一名电影概念美术提示词设计师。根据给出的互动游戏世界背景与当前场景，写出一条可直接用于图像生成模型的英文 prompt。
+要求：
+1. 忠实呈现场景中可见的地点、人物、动作、光线、天气、情绪和关键物件，不续写剧情，不添加剧透。
+2. 采用 cinematic game concept art 风格，构图清晰、氛围强、细节丰富，横向 16:9。
+3. 不出现文字、字幕、UI、logo、水印；避免不必要的血腥特写。
+4. prompt 不超过 900 个字符。
+5. 只输出合法 JSON：{"prompt":"..."}。`
+
 /** 解析失败时追加给模型的重试提示，强调仅输出合法 JSON */
 const JSON_RETRY_PROMPT = `【重要】你上一轮回复无法被解析为合法 JSON。请立即重新输出，且必须遵守以下规则：
 1. 只输出一个 JSON 对象，从 { 开始到 } 结束，不要输出任何其他文字、说明或 markdown。
@@ -76,8 +119,14 @@ const JSON_RETRY_PROMPT = `【重要】你上一轮回复无法被解析为合�
 请直接输出修正后的 JSON，不要有任何前缀或后缀。`
 
 function buildMessages(body) {
-  const { messages, chapterSummary, currentState } = body
-  const parts = [SYSTEM_PROMPT]
+  const { messages, chapterSummary, currentState, gameMode, worldBackground } = body
+  const isCustom = gameMode === 'custom'
+  const background = typeof worldBackground === 'string' ? worldBackground.trim().slice(0, 4000) : ''
+  const parts = [isCustom ? CUSTOM_SYSTEM_PROMPT : SYSTEM_PROMPT]
+
+  if (isCustom) {
+    parts.push(`\n## 玩家自定义世界背景（最高世界观约束）\n${background}`)
+  }
 
   if (chapterSummary && chapterSummary.trim()) {
     parts.push(`\n## 上一章摘要（请据此延续剧情）\n${chapterSummary}`)
@@ -92,6 +141,31 @@ function buildMessages(body) {
     if (m.role && m.content) msgs.push({ role: m.role, content: String(m.content) })
   }
   return msgs
+}
+
+function buildImagePromptMessages(body) {
+  const background =
+    typeof body.worldBackground === 'string' && body.worldBackground.trim()
+      ? body.worldBackground.trim().slice(0, 4000)
+      : DEFAULT_WORLD_BACKGROUND
+  const scene = {
+    world_background: background,
+    current_narrative: String(body.narrative || '').trim().slice(0, 6000),
+    area_id: String(body.areaId || '').slice(0, 100),
+    chapter: Number.isFinite(body.chapterIndex) ? body.chapterIndex + 1 : undefined,
+  }
+  return [
+    { role: 'system', content: IMAGE_PROMPT_SYSTEM },
+    { role: 'user', content: JSON.stringify(scene) },
+  ]
+}
+
+function getImageUrl(image) {
+  if (typeof image?.url === 'string' && image.url) return image.url
+  if (typeof image?.b64_json === 'string' && image.b64_json) {
+    return `data:image/png;base64,${image.b64_json}`
+  }
+  return ''
 }
 
 /**
@@ -187,6 +261,12 @@ app.post('/api/chat', async (req, res) => {
   try {
     if (!process.env.OPENAI_API_KEY) {
       return res.status(503).json({ error: '未配置 OPENAI_API_KEY，请在 backend/.env 中设置' })
+    }
+    if (
+      req.body?.gameMode === 'custom' &&
+      (typeof req.body?.worldBackground !== 'string' || req.body.worldBackground.trim().length < 20)
+    ) {
+      return res.status(400).json({ error: '自定义模式的世界背景至少需要 20 个字' })
     }
     const messages = buildMessages(req.body)
     const timeoutMs = Number(process.env.REQUEST_TIMEOUT_MS) || 90000
@@ -293,6 +373,89 @@ app.post('/api/chat', async (req, res) => {
   }
 })
 
+app.post('/api/generate-scene-image', async (req, res) => {
+  const narrative = typeof req.body?.narrative === 'string' ? req.body.narrative.trim() : ''
+  if (!narrative) {
+    return res.status(400).json({ error: '当前场景为空，暂时无法生图' })
+  }
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(503).json({ error: '未配置 OPENAI_API_KEY，无法生成场景提示词' })
+  }
+  if (!process.env.GROK_API_KEY && !process.env.OPENAI_API_KEY) {
+    return res.status(503).json({ error: '未配置 GROK_API_KEY，请在 backend/.env 中设置' })
+  }
+
+  const timeoutMs = Number(process.env.IMAGE_REQUEST_TIMEOUT_MS) || 120000
+  try {
+    const promptController = new AbortController()
+    const promptTimer = setTimeout(() => promptController.abort(), timeoutMs)
+    let promptCompletion
+    try {
+      promptCompletion = await openai.chat.completions.create(
+        {
+          model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+          messages: buildImagePromptMessages(req.body),
+          temperature: 0.7,
+          max_tokens: 600,
+          response_format: { type: 'json_object' },
+        },
+        { signal: promptController.signal }
+      )
+    } finally {
+      clearTimeout(promptTimer)
+    }
+
+    const promptResult = extractJson(promptCompletion.choices?.[0]?.message?.content)
+    const prompt = typeof promptResult?.prompt === 'string' ? promptResult.prompt.trim() : ''
+    if (!prompt) {
+      return res.status(502).json({ error: '场景提示词生成失败，请重试' })
+    }
+
+    const imageController = new AbortController()
+    const imageTimer = setTimeout(() => imageController.abort(), timeoutMs)
+    let imageResponse
+    try {
+      const imageRequest = {
+        model: process.env.GROK_IMAGE_MODEL || 'grok-imagine-image',
+        prompt: prompt.slice(0, 1024),
+        response_format: process.env.GROK_IMAGE_RESPONSE_FORMAT || 'url',
+        n: 1,
+      }
+      // size 是 OpenAI 兼容字段；aspect_ratio 是部分 Grok/xAI 网关的扩展字段。
+      // 默认不发送，避免第三方兼容接口拒绝未知参数。
+      if (process.env.GROK_IMAGE_SIZE) imageRequest.size = process.env.GROK_IMAGE_SIZE
+      if (process.env.GROK_IMAGE_ASPECT_RATIO) {
+        imageRequest.aspect_ratio = process.env.GROK_IMAGE_ASPECT_RATIO
+      }
+      imageResponse = await grok.images.generate(imageRequest, { signal: imageController.signal })
+    } finally {
+      clearTimeout(imageTimer)
+    }
+
+    const image = imageResponse.data?.[0]
+    const imageUrl = getImageUrl(image)
+    if (!imageUrl) {
+      return res.status(502).json({ error: 'Grok 兼容接口未返回 url 或 b64_json 图片' })
+    }
+    res.json({
+      imageUrl,
+      prompt,
+      revisedPrompt: image.revised_prompt || '',
+      mimeType: image.mime_type || 'image/jpeg',
+    })
+  } catch (err) {
+    console.error('Scene image generation failed:', err)
+    const isTimeout =
+      err?.name === 'AbortError' ||
+      err?.code === 'ETIMEDOUT' ||
+      String(err?.message || '').toLowerCase().includes('timeout')
+    const status = Number(err?.status)
+    res.status(status >= 400 && status < 600 ? status : 500).json({
+      error: isTimeout ? '场景生图超时，请稍后重试' : '场景生图失败，请检查 Grok API 配置后重试',
+    })
+  }
+})
+
 // 连接自检：用 Node 发请求看能否连上配置的 API 地址（帮助排查 ETIMEDOUT 是网络还是环境问题）
 app.get('/api/check-connection', async (req, res) => {
   const base = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
@@ -346,4 +509,9 @@ if (serveStatic) {
 }
 
 const PORT = process.env.PORT || 3000
-app.listen(PORT, () => console.log(`Backend http://localhost:${PORT}`))
+const isMainModule = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+if (isMainModule) {
+  app.listen(PORT, () => console.log(`Backend http://localhost:${PORT}`))
+}
+
+export { app, buildMessages, buildImagePromptMessages, extractJson, getImageUrl }

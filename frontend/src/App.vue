@@ -4,6 +4,7 @@ import GameNarrative from './components/GameNarrative.vue'
 import GameStats from './components/GameStats.vue'
 import GameMap from './components/GameMap.vue'
 import GameBgm from './components/GameBgm.vue'
+import SceneImage from './components/SceneImage.vue'
 
 const STORAGE_KEY = 'llm_story_save'
 const BGM_TAGS = ['calm', 'tense', 'mystery', 'action', 'sad']
@@ -29,9 +30,14 @@ const loading = ref(false)
 const error = ref('')
 const customInput = ref('')
 const currentBgm = ref(null)
+const gameMode = ref('default')
+const worldBackground = ref('')
+const showCustomSetup = ref(false)
+const customBackground = ref('')
 
 const canRollback = computed(() => rollbackSnapshots.value.length >= 1)
 const canSave = computed(() => messages.value.length > 0)
+const gameTitle = computed(() => (gameMode.value === 'custom' ? '自定义世界 · 命运叙事' : '雾中村庄 · 生死抉择'))
 
 function mergeState(update) {
   if (!update || typeof update !== 'object') return
@@ -77,6 +83,8 @@ function sendChoice(choice) {
       messages: messages.value,
       chapterSummary: chapterSummary.value || undefined,
       currentState: state.value,
+      gameMode: gameMode.value,
+      worldBackground: worldBackground.value || undefined,
     }),
   })
     .then((r) => r.json())
@@ -144,6 +152,8 @@ function saveGame() {
     areaId: areaId.value,
     visibleAreas: visibleAreas.value,
     bgmTag: bgmTag.value,
+    gameMode: gameMode.value,
+    worldBackground: worldBackground.value,
   }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
@@ -174,6 +184,8 @@ function loadGame() {
     areaId.value = payload.areaId ?? 'crash_site'
     visibleAreas.value = payload.visibleAreas ?? ['crash_site']
     bgmTag.value = payload.bgmTag ?? 'tense'
+    gameMode.value = payload.gameMode === 'custom' ? 'custom' : 'default'
+    worldBackground.value = payload.worldBackground ?? ''
     error.value = ''
     showMenu.value = false
   } catch (e) {
@@ -181,27 +193,48 @@ function loadGame() {
   }
 }
 
-function startFromMenu() {
+function resetGame(mode = 'default', background = '') {
   showMenu.value = false
+  gameMode.value = mode
+  worldBackground.value = background
   chapterIndex.value = 0
   chapterSummary.value = ''
   turnIndex.value = 0
-  state.value = { health: 100, ammo: 10, items: ['LEMI手枪', '急救药 x1'], relation_npc: {} }
+  state.value =
+    mode === 'custom'
+      ? { health: 100, ammo: 0, items: [], relation_npc: {} }
+      : { health: 100, ammo: 10, items: ['LEMI手枪', '急救药 x1'], relation_npc: {} }
   messages.value = []
   rollbackSnapshots.value = []
   narrative.value = ''
   options.value = []
   allowCustomInput.value = true
-  areaId.value = 'crash_site'
-  visibleAreas.value = ['crash_site']
-  bgmTag.value = 'tense'
+  areaId.value = mode === 'custom' ? 'starting_area' : 'crash_site'
+  visibleAreas.value = [areaId.value]
+  bgmTag.value = mode === 'custom' ? 'mystery' : 'tense'
   error.value = ''
+}
+
+function startFromMenu() {
+  resetGame('default')
   sendChoice('开始游戏。我扮演伊森·温特斯，请从押送车侧翻后我在雪林残骸中醒来的情境开始叙述，并给出 [A][B][C] 三个行动选项。')
+}
+
+function startCustomGame() {
+  const background = customBackground.value.trim()
+  if (background.length < 20) {
+    error.value = '请至少输入 20 个字的世界背景，让 AI 有足够信息开场'
+    return
+  }
+  resetGame('custom', background)
+  sendChoice('请根据我提供的自定义背景创建开场。为我确定一个适合参与故事的身份、眼前目标和迫近危机，并给出 [A][B][C] 三个行动选项。')
 }
 
 function startNew() {
   if (!confirm('将清除当前进度并重新开始，是否继续？')) return
-  startFromMenu()
+  showMenu.value = true
+  showCustomSetup.value = false
+  error.value = ''
 }
 
 watch(bgmTag, (tag) => {
@@ -226,7 +259,30 @@ onMounted(() => {
           每一个选择都将把你引向生存、真相，或是万劫不复。你愿意踏入雾中吗？
         </p>
         <div class="menu-actions">
-          <button type="button" class="btn btn-menu-primary" @click="startFromMenu">新游戏</button>
+          <button type="button" class="btn btn-menu-primary" @click="startFromMenu">经典模式</button>
+          <button
+            type="button"
+            class="btn btn-menu-secondary"
+            @click="showCustomSetup = !showCustomSetup; error = ''"
+          >
+            自定义模式
+          </button>
+          <div v-if="showCustomSetup" class="custom-setup">
+            <label for="world-background">输入你想体验的世界背景</label>
+            <textarea
+              id="world-background"
+              v-model="customBackground"
+              maxlength="2000"
+              rows="6"
+              placeholder="例如：公元 2197 年，月球背面的采矿城与地球失联。玩家是刚苏醒的维修工程师，城市供氧只剩六小时，而废弃矿井深处传来规律的无线电信号……"
+            />
+            <div class="custom-setup-footer">
+              <span>{{ customBackground.length }}/2000</span>
+              <button type="button" class="btn btn-menu-primary" @click="startCustomGame">
+                开始自定义游戏
+              </button>
+            </div>
+          </div>
           <button type="button" class="btn btn-menu-secondary" @click="loadGame">读档</button>
         </div>
         <p v-if="error" class="menu-error">{{ error }}</p>
@@ -234,7 +290,7 @@ onMounted(() => {
     </div>
     <template v-else>
     <header class="header">
-      <h1 class="title">雾中村庄 · 生死抉择</h1>
+      <h1 class="title">{{ gameTitle }}</h1>
       <div class="actions">
         <button class="btn btn-secondary" @click="loadGame">读档</button>
         <button class="btn btn-secondary" :disabled="!canSave" @click="saveGame">存档</button>
@@ -245,10 +301,21 @@ onMounted(() => {
     <main class="main">
       <aside class="aside">
         <GameStats :state="state" />
-        <GameMap :area-id="areaId" :visible-areas="visibleAreas" :chapter-index="chapterIndex" />
+        <GameMap
+          :area-id="areaId"
+          :visible-areas="visibleAreas"
+          :chapter-index="chapterIndex"
+          :custom-mode="gameMode === 'custom'"
+        />
       </aside>
       <section class="content">
         <GameBgm :tag="currentBgm" />
+        <SceneImage
+          :narrative="narrative"
+          :world-background="worldBackground"
+          :area-id="areaId"
+          :chapter-index="chapterIndex"
+        />
         <Teleport to="body">
           <div v-if="showRollbackPanel" class="rollback-overlay" @click.self="showRollbackPanel = false">
             <div class="rollback-panel">
@@ -364,6 +431,44 @@ onMounted(() => {
   margin: 1rem 0 0 0;
   font-size: 0.85rem;
   color: var(--red);
+}
+.custom-setup {
+  width: min(100%, 36rem);
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-panel);
+  text-align: left;
+}
+.custom-setup label {
+  display: block;
+  margin-bottom: 0.55rem;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+.custom-setup textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 8rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  outline: none;
+  background: var(--bg-dark);
+  color: var(--text);
+  line-height: 1.6;
+}
+.custom-setup textarea:focus {
+  border-color: var(--accent);
+}
+.custom-setup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  color: var(--text-dim);
+  font-size: 0.75rem;
 }
 
 .header {
